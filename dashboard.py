@@ -96,7 +96,6 @@ if df is not None:
 
     # --- SCENARIO 2: FUTURE DATE (No real data yet) ---
     else:
-        st.info("Generating the model output...")
         
         # 1. Create a synthetic 24-hour timeline for the chosen future day
         future_times = pd.date_range(start=selected_date, periods=24, freq='h')
