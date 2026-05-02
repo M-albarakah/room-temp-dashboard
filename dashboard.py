@@ -11,17 +11,11 @@ def load_assets():
     try:
         model = joblib.load('temperature_model.pkl')
         
-        # Load and Merge
-        df1 = pd.read_csv('MLTempDataset.csv')
-        df2 = pd.read_csv('MLTempDataset1.csv')
-        df = pd.concat([df1, df2], ignore_index=True)
+        # Load Data (Cleaned up the duplicate loading here)
+        df = pd.read_csv('clean_data.csv')
         
-        # CLEANING: Automatic date detection
-        for col in df.columns:
-            converted = pd.to_datetime(df[col], errors='coerce')
-            if converted.notnull().sum() > len(df) * 0.8: 
-                df['clean_datetime'] = converted
-                break
+        # CLEANING: Explicitly use your 'date' column (Fixes the 1970 glitch)
+        df['clean_datetime'] = pd.to_datetime(df['date'], errors='coerce')
         
         if 'temperature' not in df.columns:
             df['temperature'] = df.iloc[:, 3] 
@@ -62,7 +56,7 @@ if df is not None:
     st.sidebar.write(f"**Total Records:** {stats['count']}")
 
     # --- MAIN INTERFACE ---
-    st.title("🌡️ Room Temperature Prediction")
+    st.title("Room Temperature Prediction")
     
     col1, col2 = st.columns([1, 3])
     
@@ -81,9 +75,19 @@ if df is not None:
         # Prediction Logic
         is_fallback = False
         try:
-            feat = day_data[['temperature']].values
-            preds = model.predict(feat).flatten()
-        except:
+            # 1. Recreate the exact columns your model was trained on
+            features = pd.DataFrame({
+                'Hour': day_data['clean_datetime'].dt.hour,
+                'Day': day_data['clean_datetime'].dt.day,
+                'Month': day_data['clean_datetime'].dt.month
+            })
+            
+            # 2. Give those correct features to the model
+            preds = model.predict(features).flatten()
+            
+        except Exception as e:
+            # If it still fails, print the actual error to the terminal so we can see why!
+            print(f"Model Error: {e}") 
             preds = day_data['temperature'].values * 0.98 + 0.4
             is_fallback = True
 
@@ -105,8 +109,7 @@ if df is not None:
         if is_fallback:
             st.info("💡 Note: Displaying simulated predictions (Model Input Mismatch).")
         
-        with st.expander("🔍 View Raw Data Table"):
-            st.dataframe(day_data[['clean_datetime', 'temperature']], use_container_width=True)
-    else:
-        st.warning(f"No data found for {selected_date}.")
-        
+        #with st.expander("🔍 View Raw Data Table"):
+         #   st.dataframe(day_data[['clean_datetime', 'temperature']], use_container_width=True)
+  #  else:
+      #  st.warning(f"No data found for {selected_date}.")
